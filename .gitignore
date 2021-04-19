@@ -1,0 +1,26 @@
+# Simple Build Tool
+# http://www.scala-sbt.org/release/docs/Getting-Started/Directories.html#configuring-version-control
+
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+.history
+.cache
+.lib/s
+
+# Python
+__pycache__
+*.egg-info
+*.bak
+.ipynb_checkpoints
+.tox
+.DS_Store
+.coverage
+.pytest_cache
+
+# IDE, TextEditor
+.metals
+.vscode

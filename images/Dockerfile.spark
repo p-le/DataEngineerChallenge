@@ -1,0 +1,11 @@
+# Upgrade from Python 3.6 to Python 3.8
+# to be able to run with Pyspark-jupyter Docker image
+# that require same version of Python on Spark worker
+FROM docker.io/bitnami/spark:3
+
+USER  root
+
+RUN rm -rf /opt/bitnami/python/
+RUN . /opt/bitnami/scripts/libcomponent.sh && component_unpack "python" "3.8.9-0" --checksum 4f1f6b81a3617dfaaa2c579510118ef6df07119977a5d6ca7df3cf485fca709a
+
+USER 1001
