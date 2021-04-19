@@ -10,6 +10,7 @@ project/plugins/project/
 .history
 .cache
 .lib/s
+.bloop
 
 # Python
 __pycache__

@@ -1,4 +1,5 @@
 BASE_PATH = $(shell pwd)
+
 define DOCKER_PREFIX_SBT
 docker container run -it --rm \
 	--workdir /app \
@@ -40,20 +41,30 @@ run:
 # Run Spark application locally on 2 cores
 .PHONY: submit
 OUTPUT_JAR = analyze-job_2.12-0.1.0-SNAPSHOT.jar
-# INPUT_FILE = /opt/bitnami/spark/data/2015_07_22_mktplace_shop_web_log_sample.log.gz
-INPUT_FILE = /data/test.gz
+INPUT_FILE = /var/tmp/data/2015_07_22_mktplace_shop_web_log_sample.log.gz
+OUTPUT_DIR = /var/tmp/data
+# INPUT_FILE = /var/tmp/data/test.gz
 submit: package
-	docker-compose exec spark \
+	@docker-compose exec -u root spark chown -R 1001:1001 /var/tmp/data
+	@docker-compose exec spark \
 		spark-submit \
 		--class phu.le.dev.challenge.AnalyzeJob \
 		--master local[2] \
 		target/scala-2.12/${OUTPUT_JAR} \
-		${INPUT_FILE}
+		${INPUT_FILE} \
+		${OUTPUT_DIR}
+
 
 .PHONY: test
 test:
 	${DOCKER_PREFIX_SBT} \
 		sbt test
+
+
+.PHONY: upload-gcs
+BUCKET = paypay-data-engineer-challenge
+upload-gcs:
+	@gsutil -m cp -r data/*.csv gs://paypay-data-engineer-challenge
 
 
 .PHONY: clean

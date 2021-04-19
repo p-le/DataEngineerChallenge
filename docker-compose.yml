@@ -1,5 +1,7 @@
 version: '2'
-
+# I tryed to use Spark image from Bitnami: https://hub.docker.com/r/bitnami/spark/
+# But this image come with Python 3.5 and does not work with jupyter/pyspark-notebook
+# that come with Python 3.8.
 services:
   spark:
     image: spark3-python:3.8
@@ -10,11 +12,11 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
     volumes:
-      - ./target:/opt/bitnami/spark/target
-      - ./data:/data
+      - ./target:/opt/bitnami/spark/target  # Mount sbt scala compile folder to container
+      - ./data:/var/tmp/data                        # Mount data folder to container
     ports:
-      - '8080:8080'
-      - '7077:7077'
+      - '8080:8080' # Port for Spark Dashboard UI
+      - '7077:7077' # Port for connecting Spark Master (submit app)
 
   spark-worker-1:
     image: spark3-python:3.8
@@ -28,7 +30,7 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
     volumes:
-      - ./data:/data
+      - ./data:/var/tmp/data  # Mount data folder to container
     depends_on:
       - spark
 
@@ -44,14 +46,14 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
     volumes:
-      - ./data:/data
+      - ./data:/var/tmp/data  # Mount data folder to container
     depends_on:
       - spark
 
   jupyter:
     image: jupyter/pyspark-notebook
     ports:
-      - '8888:8888'
+      - '8888:8888' # Expose Port to Host Machine
     volumes:
-      - ./notebooks:/home/jovyan/work/notebooks
-      - ./data:/data
+      - ./notebooks:/home/jovyan/work/notebooks   # Mount notebooks to container
+      - ./data:/var/tmp/data                      # Mount data folder to container
