@@ -140,7 +140,6 @@ object AnalyzeJob {
 	/** Group by Access Log Entries by
 	*	- Client IP Address
 	*	- Time based on Window (Default: 1 Hour) (New Column: `session`)
-	*
 	*	Then I collected all entries in the session window into an array of struct format (New Column: `pageHits`)
 	*		- time
 	*		- requestURL
@@ -148,13 +147,20 @@ object AnalyzeJob {
 	*	@param df Dataframe
 	*	@param inactivityThreshold Session Inactivity Threshold
 	*/
-	private def runSessionizedDF(df: DataFrame, inactivityThreshold: String = INACTIVITY_THRESHOLD): DataFrame = {
+	def runSessionizedDF(df: DataFrame, inactivityThreshold: String = INACTIVITY_THRESHOLD): DataFrame = {
 		return df
 			.groupBy(col("clientAddress"), window(col("time"), inactivityThreshold).alias("session"))
 			.agg(sort_array(collect_list(struct(col("time"), col("requestURL")))).alias("pageHits"))
 	}
 
-	private def runUniqPageHitDF(sessionizedDF: DataFrame): DataFrame = {
+
+	/** Extract Unique Requestl URL and count
+	*	- 1> Use `array_distinct` to find unique Request URL
+	*	- 2> Use `size` to count unique Request URL
+	*
+	*	@param sessionizedDF Sessionized DataFrame
+	*/
+	def runUniqPageHitDF(sessionizedDF: DataFrame): DataFrame = {
 		return sessionizedDF
 			.select(
 				col("clientAddress"),
@@ -166,16 +172,15 @@ object AnalyzeJob {
 			.drop(col("pageHits"))
 	}
 
-	/* 	Grouping PageHits and calculate Session Time
-		- Session Window: 1 Hour
-		- Get First Page Hit Time in session
-		- Get Last Page Hit Time in session
-		- Subtract the last Page Hit event to the first Page Hit in each session Window
-			- SessionTimeInterval = LastPageHit - FirstPageHit
-			- SessionTimeInterval is IntervalType
-		- Convert SessionTimeInterval to SessionTimeSeconds
+	/** Grouping PageHits and calculate Session Time
+	*	- 1> Get Time of First Page Hit in each session
+	*	- 2> Get Time of Last Page Hit in each session
+	*	- 3> Subtract the last Page Hit event to the first Page Hit in each session Window
+	*	- 4> Convert SessionTimeInterval to SessionTimeSeconds
+	*	@param spark
+	*	@param sessionizedDF Sessionized DataFrame
 	*/
-	private def runSessionTimeIncludedDF(spark: SparkSession, sessionizedDF: DataFrame): DataFrame = {
+	def runSessionTimeIncludedDF(spark: SparkSession, sessionizedDF: DataFrame): DataFrame = {
 		import spark.implicits._
 		return sessionizedDF
 			.withColumn("firstPageHit", $"pageHits".apply(0).getItem("time"))
@@ -185,21 +190,35 @@ object AnalyzeJob {
 			.drop(col("pageHits"))
 	}
 
-	private def runMostEngagedUserDF(spark: SparkSession, sessionizedDF: DataFrame): DataFrame = {
+	/** Find Most Engaged Users = IPs with the longest session times
+	*	- 1> Group By Client IP Address
+	*	- 2> Aggregate to find max session time per IPs
+	*	- 3> Sort
+	*	@param spark
+	*	@param sessionTimeIncludedDF Sessionized DataFrame with Session Time Calculated
+	*/
+	def runMostEngagedUserDF(spark: SparkSession, sessionTimeIncludedDF: DataFrame): DataFrame = {
 		import spark.implicits._
-		return sessionizedDF
+		return sessionTimeIncludedDF
 			.select($"clientAddress", $"sessionTimeSeconds")
 			.groupBy($"clientAddress")
 			.agg(max(col("sessionTimeSeconds")).alias("maxSessionTimeSeconds"))
 			.sort(desc("maxSessionTimeSeconds"))
 	}
 
-	private def runAverageSessionTimeDF(spark: SparkSession, sessionizedDF: DataFrame): DataFrame = {
+	/** Find Average Session Times per IP
+	*	- 1> Group By Client IP Address
+	*	- 2> Aggregate to calculate avg session time per IP and round half up
+	*	- 3> Sort
+	*	@param spark
+	*	@param sessionTimeIncludedDF Sessionized DataFrame with Session Time Calculated
+	*/
+	def runAverageSessionTimeDF(spark: SparkSession, sessionTimeIncludedDF: DataFrame): DataFrame = {
 		import spark.implicits._
-		return sessionizedDF
+		return sessionTimeIncludedDF
 			.select($"clientAddress", $"sessionTimeSeconds")
 			.groupBy($"clientAddress")
-			.agg(avg($"sessionTimeSeconds").alias("averageSessionTimeSeconds"))
+			.agg(round(avg($"sessionTimeSeconds")).cast(LongType).alias("averageSessionTimeSeconds"))
 			.sort(desc("averageSessionTimeSeconds"))
 	}
 

@@ -13,13 +13,16 @@ docker container run -it --rm \
 	hseeberger/scala-sbt:11.0.10_1.5.0_2.12.13
 endef
 
+
 .PHONY: build-spark3-python3.8
 build-spark3-python3.8:
 	docker image build -t spark3-python:3.8 -f images/Dockerfile.spark ./images/
 
+
 .PHONY: start-stack
 start-stack: build-spark3-python3.8
 	docker-compose up
+
 
 .PHONY: compile
 compile:
@@ -65,11 +68,3 @@ test:
 BUCKET = paypay-data-engineer-challenge
 upload-gcs:
 	@gsutil -m cp -r data/*.csv gs://paypay-data-engineer-challenge
-
-
-.PHONY: clean
-CURRENT_UID := $(shell id -u)
-CURRENT_GID := $(shell id -g)
-clean:
-	$(shell chown -R vagrant:vagrant .)
-	$(shell find ./target ! -name '.gitignore' -type f -exec rm -rf {} +)
